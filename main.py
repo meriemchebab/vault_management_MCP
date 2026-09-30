@@ -15,7 +15,7 @@ mcp = MCPServer("obsidian-project-manager")
 # helper function for search
 def _find_target_file(note_name: str) -> Path | None:
     """Finds a note by name (case-insensitive, with or without .md extension)."""
-    clean_name = note_name[:-3] if note_name.endswith(".md") else note_name
+    clean_name = note_name[:-3] if note_name.lower().endswith(".md") else note_name
     for path in VAULT_DIR.rglob("*.md"):
         if path.stem.lower() == clean_name.lower():
             return path
@@ -122,7 +122,7 @@ def append_under_heading(note_name: str, heading: str, content: str) -> str:
         for idx in range(target_idx + 1, len(lines)):
             line = lines[idx].strip()
             boundary_match = re.match(r"^(#+)\s+.*", line)
-            if boundary_match and len(boundary_match.group(1)) <= heading_level:
+            if boundary_match:
                 insert_idx = idx
                 break
 
@@ -209,8 +209,11 @@ def log_dev_session(
 - **Accomplishments:**
 {tasks_md}{blockers_md}
 """
+    if not file_path.exists():
+        file_path.write_text("", encoding="utf-8")
+
     return append_under_heading(
-        note_name=str(file_path),
+        note_name=file_path.name,
         heading="## Development Log",
         content=entry_block.strip()
     )
