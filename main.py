@@ -7,7 +7,7 @@ from mcp.server.mcpserver import MCPServer
 
 # update this to absolute Obsidian vault path
 
-VAULT_DIR = Path("your path")
+VAULT_DIR = Path(r"C:\\Users\hp\\Documents\Obsidian Vault").resolve()
 
 mcp = MCPServer("obsidian-project-manager")
 
@@ -22,11 +22,16 @@ def _find_target_file(note_name: str) -> Path | None:
     return None
 
 
-
 @mcp.tool()
 def list_notes() -> list[str]:
     """List all markdown note filenames currently in the Obsidian vault."""
-    return sorted([p.name for p in VAULT_DIR.rglob("*.md")])
+    if not VAULT_DIR.exists():
+        return [f"ERROR: Vault directory not found at: {VAULT_DIR}"]
+    
+    files = [p.name for p in VAULT_DIR.rglob("*") if p.suffix.lower() == ".md"]
+    if not files:
+        return [f"DEBUG: Vault path exists at {VAULT_DIR}, but 0 .md files were matched."]
+    return sorted(files)
 
 
 
