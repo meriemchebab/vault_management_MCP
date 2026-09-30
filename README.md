@@ -1,6 +1,6 @@
 # Obsidian MCP Assistant
 
-A local Model Context Protocol (MCP) server turns an Obsidian vault into an interactive second brain for AI coding assistants (Claude Desktop, OpenCode, VS Code, Cursor), allowing models to read notes, search ideas and unfinished tasks ,brainstorm with ai and put that as a plan in an .md file , record work logs, and synthesize summaries on the project progress.
+A local Model Context Protocol (MCP) server turns an Obsidian vault into an interactive second brain for AI coding assistants (Claude Desktop, OpenCode, VS Code, Cursor), allowing models to read notes, search ideas and unfinished tasks ,brainstorm and put that as a plan in an .md file , record work logs, and synthesize summaries on the project progress.
 
 
 

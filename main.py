@@ -89,7 +89,7 @@ def append_under_heading(note_name: str, heading: str, content: str) -> str:
     Args:
         note_name: The title or filename of the note (e.g. 'Project Tracker' or '2026-09-29').
         heading: The heading title with or without markdown symbols (e.g. '## Tasks' or 'Tasks').
-        content: The text to insert (e.g. '- [ ] Review vector embeddings').
+        content: The text to insert ('e.g. - [ ] Review vector embeddings').
     """
     file_path = _find_target_file(note_name)
     if not file_path:
