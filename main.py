@@ -405,8 +405,6 @@ def save_code_snippet(
         # Optional wikilink to parent project
         project_link = f"- [[{source_project_value}]]" if source_project_value else "None"
 
-        # Format note content. Built from a list of lines so nothing is
-        # implicitly indented and the fenced block is explicitly closed.
         frontmatter = "\n".join(
             [
                 
