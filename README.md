@@ -53,7 +53,7 @@ Configure your MCP client to launch this project's `main.py` using `uv`. For exa
       "command": "uv",
       "args": [
         "--directory",
-        "C:\\Users\\hp\\OneDrive\\Documents\\volt_management_MCP",
+        "C:\\Users\\hp\\OneDrive\\Documents\\vault_management_MCP",
         "run",
         "main.py"
       ]
