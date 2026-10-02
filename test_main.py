@@ -347,6 +347,22 @@ def test_save_code_snippet_handles_empty_code_and_explanation(vault):
     assert content.count("```") == 2
 
 
+def test_save_code_snippet_accepts_none_for_optional_fields(vault):
+    result = main.save_code_snippet(
+        "OptionalFields",
+        "python",
+        "print(1)",
+        None,
+        tags=None,
+        source_project=None,
+    )
+    content = (vault / "Snippets" / "OptionalFields.md").read_text(encoding="utf-8")
+
+    assert result == "Successfully saved snippet to: Snippets/OptionalFields.md"
+    assert "  - snippet" in content
+    assert content.rstrip().endswith("None")
+
+
 @pytest.mark.parametrize(
     "raw,expected",
     [

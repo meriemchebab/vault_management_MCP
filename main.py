@@ -354,8 +354,8 @@ def save_code_snippet(
     language: str,
     code: str,
     explanation: str,
-    tags: list[str] = [],
-    source_project: str = ""
+    tags: list[str] | None = None,
+    source_project: str | None = ""
 ) -> str:
     """
     Saves a code snippet or TIL (Today I Learned) note into the 'Snippets/' folder
@@ -370,6 +370,17 @@ def save_code_snippet(
         source_project: (Optional) Name of the project or context where this was solved (e.g. 'Chrono-Forest').
     """
     try:
+        title = "" if title is None else str(title)
+        language = "" if language is None else str(language)
+        code = "" if code is None else str(code)
+        explanation = "" if explanation is None else str(explanation)
+
+        tag_values = [] if tags is None else list(tags)
+        if isinstance(tags, str):
+            tag_values = [tags]
+
+        source_project_value = "" if source_project is None else str(source_project).strip()
+
         snippets_dir = VAULT_DIR / "Snippets"
         snippets_dir.mkdir(parents=True, exist_ok=True)
 
@@ -381,9 +392,9 @@ def save_code_snippet(
 
         # Build clean tags list (ensure 'snippet' is always included)
         tag_set = {"snippet"}
-        for t in tags:
+        for t in tag_values:
             # Normalize multi-word tags to kebab-case: "Retry Logic" -> "retry-logic"
-            slug = _sanitize_tag(t)
+            slug = _sanitize_tag(str(t))
             if slug:
                 tag_set.add(slug)
         if clean_lang:
@@ -392,19 +403,19 @@ def save_code_snippet(
         tags_yaml = "\n".join([f"  - {t}" for t in sorted(tag_set)])
 
         # Optional wikilink to parent project
-        project_link = f"- [[{source_project.strip()}]]" if source_project.strip() else "None"
+        project_link = f"- [[{source_project_value}]]" if source_project_value else "None"
 
         # Format note content. Built from a list of lines so nothing is
         # implicitly indented and the fenced block is explicitly closed.
         frontmatter = "\n".join(
             [
-                "---",
+                
                 f"created: {today_str}",
                 "type: snippet",
                 f"language: {clean_lang}",
                 "tags:",
                 tags_yaml,
-                "---",
+                
             ]
         )
         body_lines = [
