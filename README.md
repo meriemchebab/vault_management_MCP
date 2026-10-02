@@ -11,6 +11,7 @@ A local Model Context Protocol (MCP) server turns an Obsidian vault into an inte
 - **Brainstorm & Link:** Create idea notes in `Ideas/` pre-configured with YAML frontmatter and `[[wikilinks]]`.
 - **Surgical Edits:** Append items directly under specific Markdown headings (e.g., `## Tasks`) without clobbering neighboring sections.
 - **Automated Devlogs:** Log timestamped work sessions, resolved tasks, and blockers into `Projects/<project>.md`.
+- **Snippet Library:** Capture code or TILs into `Snippets/` with valid YAML frontmatter, normalized tags, and a syntax-highlighted fenced block.
 - **Task & Search Scanning:** Instantly retrieve open checklist items (`- [ ]`) or search keywords across the vault.
 - **Weekly Standup Synthesis:** Built-in tool and MCP prompt template to aggregate logs from the past $N$ days for executive sprint recaps.
 
@@ -76,6 +77,7 @@ Replace the project directory if you cloned or moved the repository elsewhere. T
 | `create_idea_note` | `title: str, summary: str, body: str, tags: list[str], related_notes: list[str] = []` | Creates a structured note under `Ideas/`. |
 | `log_dev_session` | `project_name: str, summary: str, completed_tasks: list[str], blockers_or_next_steps: str = ""` | Records a timestamped session in `Projects/<project_name>.md`. |
 | `get_recent_devlogs` | `days: int = 7` | Collects project sessions from the previous number of days. |
+| `save_code_snippet` | `title: str, language: str, code: str, explanation: str, tags: list[str] = [], source_project: str = ""` | Saves a code snippet or TIL note under `Snippets/` with YAML frontmatter, kebab-case tags, and a fenced code block. |
 
 ## Prompt
 

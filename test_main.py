@@ -172,3 +172,192 @@ def test_weekly_standup_prompt_includes_logs_days_and_audience(monkeypatch):
     assert "sample logs for 5 days" in prompt
     assert "engineering director" in prompt
     assert "Blockers & Risk Analysis" in prompt
+
+
+# ---------------------------------------------------------------------------
+# save_code_snippet
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def fixed_today(monkeypatch):
+    """Pin date.today() so the 'created:' frontmatter is deterministic."""
+
+    class FixedDate(date):
+        @classmethod
+        def today(cls):
+            return cls(2026, 10, 2)
+
+    monkeypatch.setattr(main, "date", FixedDate)
+
+
+def _frontmatter(content: str) -> list[str]:
+    """Return the raw lines between the opening '---' and the closing '---'."""
+    lines = content.splitlines()
+    assert lines[0] == "---", "frontmatter must open on the very first line"
+    end = lines.index("---", 1)
+    return lines[1:end]
+
+
+def test_save_code_snippet_creates_snippets_folder_and_returns_path(vault):
+    result = main.save_code_snippet("My Snippet", "python", "print(1)", "why")
+
+    assert result == "Successfully saved snippet to: Snippets/My Snippet.md"
+    assert (vault / "Snippets" / "My Snippet.md").is_file()
+
+
+def test_save_code_snippet_frontmatter_is_unindented_and_parses(vault, fixed_today):
+    """Regression: frontmatter keys used to be indented 8 spaces, which made
+    the block invalid YAML because injected tag lines were only indented 2."""
+    main.save_code_snippet(
+        "FM", "python", "print(1)", "why", tags=["python", "retry logic"]
+    )
+    content = (vault / "Snippets" / "FM.md").read_text(encoding="utf-8")
+    fm_lines = _frontmatter(content)
+
+    # 'tags:' owns its indented sequence items; the keys themselves must sit at
+    # column 0. Mixing the two indent levels is what made the block invalid.
+    key_lines = [line for line in fm_lines if not line.startswith("  ")]
+    assert [line.split(":")[0] for line in key_lines] == [
+        "created",
+        "type",
+        "language",
+        "tags",
+    ]
+    for line in key_lines:
+        assert line == line.lstrip(), f"frontmatter key must not be indented: {line!r}"
+    assert "created: 2026-10-02" in fm_lines
+    assert "type: snippet" in fm_lines
+
+    # Every tag entry shares one identical indent level.
+    tag_lines = [line for line in fm_lines if line.startswith(" ")]
+    assert tag_lines, "expected at least one tag"
+    indents = {len(line) - len(line.lstrip()) for line in tag_lines}
+    assert indents == {2}
+
+
+def test_save_code_snippet_closes_the_code_fence(vault):
+    """Regression: the fence was never closed, so '## References' was rendered
+    as part of the code block."""
+    main.save_code_snippet(
+        "Fence", "python", "print(1)", "why", source_project="Proj"
+    )
+    content = (vault / "Snippets" / "Fence.md").read_text(encoding="utf-8")
+
+    assert content.count("```") == 2, "exactly one open and one close fence"
+    close_idx = content.index("```", content.index("```") + 3)
+    references_idx = content.index("## References & Projects")
+    assert close_idx < references_idx, "fence must close before the References heading"
+
+
+def test_save_code_snippet_preserves_code_indentation(vault):
+    """Regression: the first code line used to pick up the template's own
+    indentation, leaving it misaligned with the rest of the snippet."""
+    code = "def f():\n    if True:\n        return 1\n"
+    main.save_code_snippet("Indent", "python", code, "why")
+
+    content = (vault / "Snippets" / "Indent.md").read_text(encoding="utf-8")
+    body = content.split("```python\n", 1)[1].split("\n```", 1)[0]
+
+    assert body.splitlines() == [
+        "def f():",
+        "    if True:",
+        "        return 1",
+    ]
+
+
+def test_save_code_snippet_normalizes_and_dedupes_tags(vault):
+    main.save_code_snippet(
+        "Tags",
+        "  PYTHON  ",
+        "print(1)",
+        "why",
+        tags=["#Retry Logic", "resilience", "retry logic", "  ", "c++", "!!!"],
+    )
+    content = (vault / "Snippets" / "Tags.md").read_text(encoding="utf-8")
+
+    assert "  - retry-logic" in content
+    assert "  - resilience" in content
+    assert "  - snippet" in content
+    assert "  - python" in content
+    assert "  - c" in content
+    assert content.count("  - retry-logic") == 1, "tags must be de-duplicated"
+    # Nothing that would break the YAML or Obsidian's tag rules.
+    assert "retrylogic" not in content
+    assert "!!!" not in content
+
+
+def test_save_code_snippet_omits_project_line_when_not_provided(vault):
+    main.save_code_snippet("NoProj", "python", "print(1)", "why")
+    content = (vault / "Snippets" / "NoProj.md").read_text(encoding="utf-8")
+
+    assert "- [[]]" not in content
+    assert content.rstrip().endswith("None")
+
+
+def test_save_code_snippet_sanitizes_title_for_illegal_filename_chars(vault):
+    """Illegal characters are deleted outright, so 'Deep/Dive' becomes 'DeepDive'."""
+    result = main.save_code_snippet(
+        'Deep/Dive: "v2"? <now> |x|', "python", "print(1)", "why"
+    )
+
+    assert result == "Successfully saved snippet to: Snippets/DeepDive v2 now x.md"
+    assert (vault / "Snippets" / "DeepDive v2 now x.md").is_file()
+
+
+def test_save_code_snippet_collapses_whitespace_in_title(vault):
+    result = main.save_code_snippet("Lots   of\tspace", "python", "print(1)", "why")
+
+    assert result == "Successfully saved snippet to: Snippets/Lots of space.md"
+
+
+def test_save_code_snippet_falls_back_to_untitled_for_blank_title(vault):
+    result = main.save_code_snippet("   ", "python", "print(1)", "why")
+
+    assert result == "Successfully saved snippet to: Snippets/Untitled Snippet.md"
+
+
+def test_save_code_snippet_overwrites_existing_note_of_same_title(vault):
+    main.save_code_snippet("Dup", "python", "print(1)", "first")
+    main.save_code_snippet("Dup", "python", "print(2)", "second")
+
+    files = list((vault / "Snippets").glob("*.md"))
+    assert len(files) == 1
+    content = files[0].read_text(encoding="utf-8")
+    assert "print(2)" in content
+    assert "print(1)" not in content
+    assert "second" in content
+
+
+def test_save_code_snippet_reports_failure_instead_of_raising(vault, monkeypatch):
+    def boom(*args, **kwargs):
+        raise OSError("disk full")
+
+    monkeypatch.setattr(main.Path, "write_text", boom)
+    result = main.save_code_snippet("Boom", "python", "print(1)", "why")
+
+    assert result == "Failed to save code snippet: disk full"
+
+
+def test_save_code_snippet_handles_empty_code_and_explanation(vault):
+    result = main.save_code_snippet("Empty", "python", "", "")
+    content = (vault / "Snippets" / "Empty.md").read_text(encoding="utf-8")
+
+    assert result == "Successfully saved snippet to: Snippets/Empty.md"
+    assert content.count("```") == 2
+
+
+@pytest.mark.parametrize(
+    "raw,expected",
+    [
+        ("Retry Logic", "retry-logic"),
+        ("#dsp", "dsp"),
+        ("  C++  ", "c"),
+        ("a//b", "a//b"),
+        ("!!!", ""),
+        ("", ""),
+    ],
+)
+def test_sanitize_tag(raw, expected):
+    assert main._sanitize_tag(raw) == expected
+

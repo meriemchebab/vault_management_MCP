@@ -333,6 +333,103 @@ Guidelines:
 - Keep the language crisp, outcome-driven, and focused on value delivered.
 """
 
+def _sanitize_filename(name: str) -> str:
+    """Removes characters illegal in Windows/macOS/Linux filenames and Obsidian titles."""
+    # Strip illegal Windows characters: \ / : * ? " < > |
+    sanitized = re.sub(r'[\\/*?:"<>|]', "", name).strip()
+    # Replace whitespace sequences with a single space
+    sanitized = re.sub(r"\s+", " ", sanitized)
+    return sanitized or "Untitled Snippet"
+
+
+def _sanitize_tag(name: str) -> str:
+    """Normalizes a string into a safe Obsidian/YAML tag (lowercase kebab-case)."""
+    slug = re.sub(r"[^a-zA-Z0-9_\-\/]+", "-", name.strip().lstrip("#").lower())
+    return slug.strip("-")
+
+
+@mcp.tool()
+def save_code_snippet(
+    title: str,
+    language: str,
+    code: str,
+    explanation: str,
+    tags: list[str] = [],
+    source_project: str = ""
+) -> str:
+    """
+    Saves a code snippet or TIL (Today I Learned) note into the 'Snippets/' folder
+    with clean Obsidian frontmatter, tags, and fenced code.
+
+    Args:
+        title: Short descriptive name (e.g., 'Savitzky-Golay Signal Smoothing').
+        language: Programming or config language for syntax highlighting (e.g. 'python', 'cpp', 'bash', 'json').
+        code: The raw code snippet to preserve.
+        explanation: Clear explanation of what problem this solves and how it works.
+        tags: List of keywords/tags without the '#' prefix (e.g. ['python', 'dsp', 'algorithms']).
+        source_project: (Optional) Name of the project or context where this was solved (e.g. 'Chrono-Forest').
+    """
+    try:
+        snippets_dir = VAULT_DIR / "Snippets"
+        snippets_dir.mkdir(parents=True, exist_ok=True)
+
+        clean_title = _sanitize_filename(title)
+        file_path = snippets_dir / f"{clean_title}.md"
+
+        today_str = date.today().isoformat()
+        clean_lang = language.strip().lower()
+
+        # Build clean tags list (ensure 'snippet' is always included)
+        tag_set = {"snippet"}
+        for t in tags:
+            # Normalize multi-word tags to kebab-case: "Retry Logic" -> "retry-logic"
+            slug = _sanitize_tag(t)
+            if slug:
+                tag_set.add(slug)
+        if clean_lang:
+            tag_set.add(_sanitize_tag(clean_lang))
+
+        tags_yaml = "\n".join([f"  - {t}" for t in sorted(tag_set)])
+
+        # Optional wikilink to parent project
+        project_link = f"- [[{source_project.strip()}]]" if source_project.strip() else "None"
+
+        # Format note content. Built from a list of lines so nothing is
+        # implicitly indented and the fenced block is explicitly closed.
+        frontmatter = "\n".join(
+            [
+                "---",
+                f"created: {today_str}",
+                "type: snippet",
+                f"language: {clean_lang}",
+                "tags:",
+                tags_yaml,
+                "---",
+            ]
+        )
+        body_lines = [
+            f"# {clean_title}",
+            "",
+            "> **Context & Problem:**",
+            f"> {explanation.strip()}",
+            "",
+            "## Implementation",
+            "",
+            f"```{clean_lang}",
+            code.rstrip("\n"),
+            "```",
+            "",
+            "## References & Projects",
+            project_link,
+        ]
+        content = frontmatter + "\n\n" + "\n".join(body_lines) + "\n"
+
+        file_path.write_text(content.strip() + "\n", encoding="utf-8")
+        return f"Successfully saved snippet to: Snippets/{file_path.name}"
+
+    except Exception as e:
+        return f"Failed to save code snippet: {str(e)}"
+
 # Server Entrypoint
 
 if __name__ == "__main__":
