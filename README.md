@@ -82,3 +82,7 @@ Replace the project directory if you cloned or moved the repository elsewhere. T
 ## Prompt
 
 `weekly_standup_report(days: int = 7, audience: str = "technical lead")` gathers recent development logs and prepares instructions for an executive weekly standup report, including progress, blockers, and next priorities.
+_____
+## License
+
+This project is licensed under the [MIT License](LICENSE).
